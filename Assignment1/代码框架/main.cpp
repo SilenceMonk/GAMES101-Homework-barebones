@@ -1,8 +1,9 @@
 #include "Triangle.hpp"
 #include "rasterizer.hpp"
-#include <eigen3/Eigen/Eigen>
+#include <Eigen/Eigen>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <cmath>
 
 constexpr double MY_PI = 3.1415926;
 
@@ -23,9 +24,15 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
 {
     Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
 
-    // TODO: Implement this function
     // Create the model matrix for rotating the triangle around the Z axis.
-    // Then return it.
+    // The input angle is in degrees, convert it to radians.
+    float rad = rotation_angle * MY_PI / 180.0f;
+
+    // Z-axis rotation matrix from lecture slides
+    model << std::cos(rad), -std::sin(rad), 0, 0,
+             std::sin(rad),  std::cos(rad), 0, 0,
+             0,              0,             1, 0,
+             0,              0,             0, 1;
 
     return model;
 }
@@ -33,13 +40,31 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
                                       float zNear, float zFar)
 {
-    // Students will implement this function
-
+    // Create the projection matrix for the given parameters.
+    // This implementation follows the derivation from the GAMES101 lecture slides.
     Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
 
-    // TODO: Implement this function
-    // Create the projection matrix for the given parameters.
-    // Then return it.
+    // The projection matrix is a combination of a perspective-to-orthographic
+    // transformation and an orthographic transformation.
+
+    // In a right-handed coordinate system where the camera looks along the -Z axis,
+    // the z-coordinates of the near and far planes are negative.
+    // zNear and zFar are given as positive distances.
+    float n = -zNear;
+    float f = -zFar;
+
+    // Calculate the frustum boundaries (top, bottom, right, left) on the near plane.
+    float fov_rad = eye_fov * MY_PI / 180.0f;
+    float t = std::tan(fov_rad / 2.0f) * zNear; // or std::abs(n)
+    float r = t * aspect_ratio;
+    // For a symmetric frustum: b = -t, l = -r
+
+    // The combined perspective projection matrix based on lecture derivation
+    // for a symmetric frustum.
+    projection << n / r, 0,     0,              0,
+                  0,     n / t, 0,              0,
+                  0,     0,     (n + f) / (n - f), -2 * n * f / (n - f),
+                  0,     0,     1,              0;
 
     return projection;
 }
@@ -56,8 +81,6 @@ int main(int argc, const char** argv)
         if (argc == 4) {
             filename = std::string(argv[3]);
         }
-        else
-            return 0;
     }
 
     rst::rasterizer r(700, 700);
